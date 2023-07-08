@@ -1,0 +1,6 @@
+#IDE
+.idea/*
+
+#Maven
+backend/target/
+.m2/*

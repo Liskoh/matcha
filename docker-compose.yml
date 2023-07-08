@@ -1,0 +1,67 @@
+version: '3'
+
+networks:
+  my-network:
+    driver: bridge
+
+services:
+  mongodb:
+    container_name: mongodb
+    image: mongo:latest
+    volumes:
+      - db_data:/data/db
+      - ./mongodb/create-user.js:/docker-entrypoint-initdb.d/create-user.js:ro
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE}
+      MONGO_INITDB_USERNAME: ${MONGO_INITDB_USERNAME}
+      MONGO_INITDB_PASSWORD: ${MONGO_INITDB_PASSWORD}
+      MONGO_INITDB_ROLE: ${MONGO_INITDB_ROLE}
+      MONGO_PORT: ${MONGO_PORT}
+    ports:
+      - "${MONGO_PORT}:${MONGO_PORT}"
+    networks:
+      - my-network
+    restart: always
+
+  backend:
+    container_name: backend
+    build: ./backend/
+    volumes:
+      - .m2:/root/.m2
+      - ./backend/src:/app/src
+    environment:
+      SPRING_APPLICATION_JSON: '{
+        "spring.data.mongodb.uri" : "${MONGO_URL}",
+        "jwt.secret" : "${JWT_SECRET}",
+        "jwt.expiration" : "${JWT_EXPIRATION}"
+      }'
+      SPRING_PROFILES_ACTIVE: dev
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    depends_on:
+      - mongodb
+    networks:
+      - my-network
+    restart: on-failure
+    stdin_open: true
+    tty: true
+
+  frontend:
+    container_name: frontend
+    build: ./frontend/
+    volumes:
+      - "./frontend/src:/app/src"
+      - "./frontend/public:/app/public"
+    ports:
+      - "${FRONTEND_PORT}:${FRONTEND_PORT}"
+    depends_on:
+      - backend
+    networks:
+      - my-network
+    restart: on-failure
+
+volumes:
+  db_data:
+    driver: local
